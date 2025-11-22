@@ -65,7 +65,7 @@ local function BuyAll(typeItem, selectedTable)
         elseif typeItem == "Gear" then
             Remotes.BuyGear:FireServer(name, true)
         end
-        task.wait(0.1)
+        task.wait(0.01)
     end
 end
 
@@ -77,12 +77,12 @@ Tabs.Automation:AddDropdown("SelectGear", {Title = "Select Gear (Multi)", Values
 
 Tabs.Automation:AddToggle("AutoBuySeed", {Title = "Auto Buy Selected Seed", Default = false,
     Callback = function(v)
-        if v then spawn(function() while Options.AutoBuySeed.Value do BuyAll("Seed", Options.SelectSeed.Value) task.wait(0.3) end end) end
+        if v then spawn(function() while Options.AutoBuySeed.Value do BuyAll("Seed", Options.SelectSeed.Value) task.wait(0.01) end end) end
     end})
 
 Tabs.Automation:AddToggle("AutoBuyGear", {Title = "Auto Buy Selected Gear", Default = false,
     Callback = function(v)
-        if v then spawn(function() while Options.AutoBuyGear.Value do BuyAll("Gear", Options.SelectGear.Value) task.wait(0.3) end end) end
+        if v then spawn(function() while Options.AutoBuyGear.Value do BuyAll("Gear", Options.SelectGear.Value) task.wait(0.01) end end) end
     end})
 
 -- Movement Tab
