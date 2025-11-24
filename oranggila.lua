@@ -10,7 +10,6 @@ local Window = Fluent:CreateWindow({
     MinimizeKey = Enum.KeyCode.LeftControl
 })
 
-
 local Tabs = {
     Automation = Window:AddTab({ Title = "Automation", Icon = "shopping-cart" }),
     Movement   = Window:AddTab({ Title = "Movement",   Icon = "activity" }),
@@ -30,6 +29,59 @@ local Humanoid = Player.Character and Player.Character:FindFirstChildOfClass("Hu
 local Remotes     = ReplicatedStorage:WaitForChild("Remotes")
 local SeedsFolder = ReplicatedStorage:WaitForChild("Assets"):WaitForChild("Seeds")
 local GearStocks  = require(ReplicatedStorage.Modules.Library.GearStocks)
+
+-- === BRAINROT INVASION AUTO (BARU) ===
+local ImminentAttackTimer
+local TimeLabel
+local RequestStartInvasion
+local brainrotRunning = false
+local hasFiredThisWave = false
+
+local function setupBrainrot()
+    local success, err = pcall(function()
+        ImminentAttackTimer = Player.PlayerGui:WaitForChild("Main"):WaitForChild("Right"):WaitForChild("ImminentAttackTimer")
+        TimeLabel           = ImminentAttackTimer:WaitForChild("Main"):  WaitForChild("Time")
+        RequestStartInvasion = Remotes:WaitForChild("MissionServicesRemotes"):WaitForChild("RequestStartInvasion")
+    end)
+    
+    if success then
+        print("[Farrel PVB] Brainrot Invasion siap! Menunggu READY!")
+    else
+        warn("[Farrel PVB] Gagal setup Brainrot (mungkin belum masuk game):", err)
+    end
+    return success
+end
+
+local function startBrainrotLoop()
+    if brainrotRunning then return end
+    brainrotRunning = true
+    
+    spawn(function()
+        while brainrotRunning and Options.AutoBrainrot.Value do
+            task.wait(0.15)
+            
+            if not (ImminentAttackTimer and TimeLabel and RequestStartInvasion) then
+                setupBrainrot()
+            end
+            
+            if ImminentAttackTimer and ImminentAttackTimer.UIScale.Scale == 1 then
+                if TimeLabel.Text == "READY!" then
+                    if not hasFiredThisWave then
+                        print("BRAINROT INVASION AUTO → READY! terdeteksi! Mulai wave...")
+                        RequestStartInvasion:FireServer()
+                        hasFiredThisWave = true
+                    end
+                else
+                    if hasFiredThisWave then
+                        hasFiredThisWave = false
+                        print("Wave selesai → siap deteksi READY! lagi")
+                    end
+                end
+            end
+        end
+    end)
+end
+-- ======================================
 
 -- Get Seeds & Gears
 local function GetAllSeeds()
@@ -85,6 +137,23 @@ Tabs.Automation:AddToggle("AutoBuyGear", {Title = "Auto Buy Selected Gear", Defa
         if v then spawn(function() while Options.AutoBuyGear.Value do BuyAll("Gear", Options.SelectGear.Value) task.wait(0.01) end end) end
     end})
 
+-- FITUR BARU: AUTO BRAINROT INVASION
+Tabs.Automation:AddSection("Brainrot Invasion")
+
+Tabs.Automation:AddToggle("AutoBrainrot", {
+    Title = "Auto Brainrot Invasion (Setiap Wave)",
+    Description = "Otomatis mulai invasion saat READY! muncul",
+    Default = true,
+    Callback = function(state)
+        if state then
+            setupBrainrot()
+            startBrainrotLoop()
+        else
+            brainrotRunning = false
+        end
+    end
+})
+
 -- Movement Tab
 Tabs.Movement:AddSection("Movement & Server")
 
@@ -102,7 +171,6 @@ Tabs.Movement:AddToggle("AntiAFK", {Title = "Anti AFK (Bisa AFK Selamanya)", Def
 Tabs.Movement:AddSlider("WalkSpeed", {Title = "Custom WalkSpeed", Min = 16, Max = 500, Default = 16, Rounding = 1,
     Callback = function(v) if Humanoid then Humanoid.WalkSpeed = v end end})
 
--- REJOIN SERVER ONLY (WORK DI PRIVATE & PUBLIC)
 Tabs.Movement:AddButton({
     Title = "Rejoin Server Saat Ini",
     Description = "Masuk kembali ke server yang sama (Public & Private OK)",
@@ -113,14 +181,21 @@ Tabs.Movement:AddButton({
     end
 })
 
--- Reset speed setelah respawn
+-- Reset speed & brainrot setelah respawn
 Player.CharacterAdded:Connect(function(char)
-    task.wait(1)
+    task.wait(3)
     local hum = char:FindFirstChildOfClass("Humanoid")
     if hum and Options.WalkSpeed then hum.WalkSpeed = Options.WalkSpeed.Value end
+    
+    -- Reset brainrot trigger biar bisa jalan lagi di wave baru
+    hasFiredThisWave = false
+    if Options.AutoBrainrot.Value then
+        setupBrainrot()
+        startBrainrotLoop()
+    end
 end)
 
--- Save Manager
+-- Save & Interface Manager
 local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
@@ -135,11 +210,6 @@ SaveManager:BuildConfigSection(Tabs.Settings)
 
 Window:SelectTab(1)
 
-Fluent:Notify({
-    Title = "Farrel PVB",
-    Content = "Script Loaded!\nUI Clean • Fixed Size • Rejoin Work 100% ❤️",
-    Duration = 10
-})
-
 SaveManager:LoadAutoloadConfig()
 Options.AntiAFK:SetValue(true)
+Options.AutoBrainrot:SetValue(true)   -- langsung nyala pas inject
