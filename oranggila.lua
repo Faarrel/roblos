@@ -30,7 +30,7 @@ local Remotes     = ReplicatedStorage:WaitForChild("Remotes")
 local SeedsFolder = ReplicatedStorage:WaitForChild("Assets"):WaitForChild("Seeds")
 local GearStocks  = require(ReplicatedStorage.Modules.Library.GearStocks)
 
--- === BRAINROT INVASION AUTO (BARU) ===
+-- === BRAINROT INVASION AUTO ===
 local ImminentAttackTimer
 local TimeLabel
 local RequestStartInvasion
@@ -40,7 +40,7 @@ local hasFiredThisWave = false
 local function setupBrainrot()
     local success, err = pcall(function()
         ImminentAttackTimer = Player.PlayerGui:WaitForChild("Main"):WaitForChild("Right"):WaitForChild("ImminentAttackTimer")
-        TimeLabel           = ImminentAttackTimer:WaitForChild("Main"):  WaitForChild("Time")
+        TimeLabel           = ImminentAttackTimer:WaitForChild("Main"):WaitForChild("Time")
         RequestStartInvasion = Remotes:WaitForChild("MissionServicesRemotes"):WaitForChild("RequestStartInvasion")
     end)
     
@@ -137,13 +137,13 @@ Tabs.Automation:AddToggle("AutoBuyGear", {Title = "Auto Buy Selected Gear", Defa
         if v then spawn(function() while Options.AutoBuyGear.Value do BuyAll("Gear", Options.SelectGear.Value) task.wait(0.01) end end) end
     end})
 
--- FITUR BARU: AUTO BRAINROT INVASION
+-- FITUR AUTO BRAINROT INVASION
 Tabs.Automation:AddSection("Brainrot Invasion")
 
 Tabs.Automation:AddToggle("AutoBrainrot", {
     Title = "Auto Brainrot Invasion (Setiap Wave)",
     Description = "Otomatis mulai invasion saat READY! muncul",
-    Default = true,
+    Default = false,  -- DEFAULT MATI (sesuai permintaan)
     Callback = function(state)
         if state then
             setupBrainrot()
@@ -187,9 +187,8 @@ Player.CharacterAdded:Connect(function(char)
     local hum = char:FindFirstChildOfClass("Humanoid")
     if hum and Options.WalkSpeed then hum.WalkSpeed = Options.WalkSpeed.Value end
     
-    -- Reset brainrot trigger biar bisa jalan lagi di wave baru
     hasFiredThisWave = false
-    if Options.AutoBrainrot.Value then
+    if Options.AutoBrainrot and Options.AutoBrainrot.Value then
         setupBrainrot()
         startBrainrotLoop()
     end
@@ -210,6 +209,23 @@ SaveManager:BuildConfigSection(Tabs.Settings)
 
 Window:SelectTab(1)
 
+-- LOAD CONFIG DULU, BARU AKTIFKAN FITUR SESUAI CONFIG
 SaveManager:LoadAutoloadConfig()
-Options.AntiAFK:SetValue(true)
-Options.AutoBrainrot:SetValue(true)   -- langsung nyala pas inject
+
+-- Anti-AFK langsung nyala (bisa dimatiin lewat toggle)
+if Options.AntiAFK then
+    Options.AntiAFK:SetValue(true)
+end
+
+-- Auto Brainrot: Hanya nyala kalau di config memang true (default = false)
+task.spawn(function()
+    task.wait(0.5) -- pastikan semua Options ke-load sempurna
+    if Options.AutoBrainrot and Options.AutoBrainrot.Value then
+        print("[Farrel PVB] Auto Brainrot Invasion dinyalakan dari config")
+        setupBrainrot()
+        startBrainrotLoop()
+    else
+        print("[Farrel PVB] Auto Brainrot Invasion dimatikan (sesuai config)")
+        brainrotRunning = false
+    end
+end)
