@@ -47,7 +47,7 @@ local function setupBrainrot()
     if success then
         print("[Farrel PVB] Brainrot Invasion siap! Menunggu READY!")
     else
-        warn("[Farrel PVB] Gagal setup Brainrot (mungkin belum masuk game):", err)
+        warn("[Farrel PVB] Gagal setup Brainrot:", err)
     end
     return success
 end
@@ -67,21 +67,19 @@ local function startBrainrotLoop()
             if ImminentAttackTimer and ImminentAttackTimer.UIScale.Scale == 1 then
                 if TimeLabel.Text == "READY!" then
                     if not hasFiredThisWave then
-                        print("BRAINROT INVASION AUTO → READY! terdeteksi! Mulai wave...")
+                        print("BRAINROT INVASION AUTO → READY! Mulai wave...")
                         RequestStartInvasion:FireServer()
                         hasFiredThisWave = true
                     end
                 else
                     if hasFiredThisWave then
                         hasFiredThisWave = false
-                        print("Wave selesai → siap deteksi READY! lagi")
                     end
                 end
             end
         end
     end)
 end
--- ======================================
 
 -- Get Seeds & Gears
 local function GetAllSeeds()
@@ -104,7 +102,6 @@ local function GetAllGears()
     return list
 end
 
--- Buy Function
 local function BuyAll(typeItem, selectedTable)
     local items = {}
     for name, enabled in pairs(selectedTable) do
@@ -123,7 +120,6 @@ end
 
 -- Automation Tab
 Tabs.Automation:AddSection("Shopping")
-
 Tabs.Automation:AddDropdown("SelectSeed", {Title = "Select Seed (Multi)", Values = GetAllSeeds(), Multi = true, Default = {}})
 Tabs.Automation:AddDropdown("SelectGear", {Title = "Select Gear (Multi)", Values = GetAllGears(), Multi = true, Default = {}})
 
@@ -137,13 +133,11 @@ Tabs.Automation:AddToggle("AutoBuyGear", {Title = "Auto Buy Selected Gear", Defa
         if v then spawn(function() while Options.AutoBuyGear.Value do BuyAll("Gear", Options.SelectGear.Value) task.wait(0.01) end end) end
     end})
 
--- FITUR AUTO BRAINROT INVASION
 Tabs.Automation:AddSection("Brainrot Invasion")
-
 Tabs.Automation:AddToggle("AutoBrainrot", {
     Title = "Auto Brainrot Invasion (Setiap Wave)",
     Description = "Otomatis mulai invasion saat READY! muncul",
-    Default = false,  -- DEFAULT MATI (sesuai permintaan)
+    Default = false,
     Callback = function(state)
         if state then
             setupBrainrot()
@@ -157,9 +151,12 @@ Tabs.Automation:AddToggle("AutoBrainrot", {
 -- Movement Tab
 Tabs.Movement:AddSection("Movement & Server")
 
-Tabs.Movement:AddToggle("AntiAFK", {Title = "Anti AFK (Bisa AFK Selamanya)", Default = true,
-    Callback = function(v)
-        if v then
+-- ANTI AFK: DEFAULT MATI + MENGIKUTI CONFIG
+Tabs.Movement:AddToggle("AntiAFK", {
+    Title = "Anti AFK (Bisa AFK Selamanya)",
+    Default = false,  -- SEKARANG DEFAULT MATI
+    Callback = function(state)
+        if state then
             Player.Idled:Connect(function()
                 VirtualUser:CaptureController()
                 VirtualUser:ClickButton2(Vector2.new())
@@ -169,19 +166,23 @@ Tabs.Movement:AddToggle("AntiAFK", {Title = "Anti AFK (Bisa AFK Selamanya)", Def
 })
 
 Tabs.Movement:AddSlider("WalkSpeed", {Title = "Custom WalkSpeed", Min = 16, Max = 500, Default = 16, Rounding = 1,
-    Callback = function(v) if Humanoid then Humanoid.WalkSpeed = v end end})
+    Callback = function(v)
+        if Player.Character and Player.Character:FindFirstChildOfClass("Humanoid") then
+            Player.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = v
+        end
+    end})
 
 Tabs.Movement:AddButton({
     Title = "Rejoin Server Saat Ini",
-    Description = "Masuk kembali ke server yang sama (Public & Private OK)",
+    Description = "Masuk kembali ke server yang sama",
     Callback = function()
-        Fluent:Notify({Title = "Rejoin", Content = "Sedang masuk kembali ke server..."})
+        Fluent:Notify({Title = "Rejoin", Content = "Sedang masuk kembali..."})
         task.wait(1)
         TeleportService:Teleport(game.PlaceId, Player)
     end
 })
 
--- Reset speed & brainrot setelah respawn
+-- Respawn handler
 Player.CharacterAdded:Connect(function(char)
     task.wait(3)
     local hum = char:FindFirstChildOfClass("Humanoid")
@@ -194,7 +195,7 @@ Player.CharacterAdded:Connect(function(char)
     end
 end)
 
--- Save & Interface Manager
+-- Save Manager & Interface
 local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
@@ -209,23 +210,26 @@ SaveManager:BuildConfigSection(Tabs.Settings)
 
 Window:SelectTab(1)
 
--- LOAD CONFIG DULU, BARU AKTIFKAN FITUR SESUAI CONFIG
+-- LOAD CONFIG DULU
 SaveManager:LoadAutoloadConfig()
 
--- Anti-AFK langsung nyala (bisa dimatiin lewat toggle)
-if Options.AntiAFK then
-    Options.AntiAFK:SetValue(true)
-end
-
--- Auto Brainrot: Hanya nyala kalau di config memang true (default = false)
+-- AKTIFKAN FITUR HANYA JIKA DI CONFIG NYALA (keduanya default false)
 task.spawn(function()
-    task.wait(0.5) -- pastikan semua Options ke-load sempurna
+    task.wait(0.5)
+
+    -- Anti AFK: hanya nyala kalau di config true
+    if Options.AntiAFK and Options.AntiAFK.Value then
+        print("[Farrel PVB] Anti AFK dinyalakan dari config")
+        Player.Idled:Connect(function()
+            VirtualUser:CaptureController()
+            VirtualUser:ClickButton2(Vector2.new())
+        end)
+    end
+
+    -- Auto Brainrot: hanya nyala kalau di config true
     if Options.AutoBrainrot and Options.AutoBrainrot.Value then
         print("[Farrel PVB] Auto Brainrot Invasion dinyalakan dari config")
         setupBrainrot()
         startBrainrotLoop()
-    else
-        print("[Farrel PVB] Auto Brainrot Invasion dimatikan (sesuai config)")
-        brainrotRunning = false
     end
 end)
